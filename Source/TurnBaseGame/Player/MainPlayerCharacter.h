@@ -14,5 +14,7 @@ class TURNBASEGAME_API AMainPlayerCharacter : public ATurnBasePlayerCharacter
 {
 	GENERATED_BODY()
 public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
 
 };

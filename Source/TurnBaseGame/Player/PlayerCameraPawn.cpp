@@ -55,6 +55,8 @@ void APlayerCameraPawn::Tick(float DeltaTime)
 		FVector Movement = FVector(MoveXY, GetActorLocation().Z);
 		SetActorLocation(Movement);
 
+		MouseWheelRoll();
+
 		if (PlayerInputMessage.bMouseLeft && !StartHit) {
 			StartHit = true;
 			CursorHitActor = PlayerInputMessage.CursorHit.GetActor();
@@ -62,12 +64,7 @@ void APlayerCameraPawn::Tick(float DeltaTime)
 		else if (!PlayerInputMessage.bMouseLeft && StartHit) {
 			StartHit = false;
 			if (CursorHitActor == PlayerInputMessage.CursorHit.GetActor()) {
-				if (ATurnBaseCharacter* TestCharacter = Cast<ATurnBaseCharacter>(CursorHitActor)) {
-					if (ATurnBasePlayerController* TestController = Cast<ATurnBasePlayerController>(Controller)) {
-						ResetPlayerControl();
-						TestController->ChangeControlPawn(TestCharacter);
-					}
-				}
+				ChangeControl();
 			}
 		}
 	}
@@ -84,4 +81,25 @@ bool APlayerCameraPawn::MouseLeftKeyProcess(const FHitResult& Hit) {
 void APlayerCameraPawn::ResetPlayerControl() {
 	bControlled = false;
 	PlayerInputMessage.Empty();
+}
+
+void APlayerCameraPawn::MouseWheelRoll() {
+	if (PlayerInputMessage.MouseWheelValue != 0.f) {
+		SetActorLocation(GetActorLocation() + FVector(0.f, 0.f, PlayerInputMessage.MouseWheelValue));
+	}
+}
+
+void APlayerCameraPawn::ChangeControl() {
+	if (ATurnBaseCharacter* TestCharacter = Cast<ATurnBaseCharacter>(CursorHitActor)) {
+		if (ATurnBasePlayerController* TestController = Cast<ATurnBasePlayerController>(Controller)) {
+			ResetPlayerControl();
+			TestController->ChangeControlPawn(TestCharacter);
+			Destroy();
+		}
+	}
+}
+
+void APlayerCameraPawn::ExitControl() {
+	ResetPlayerControl();
+	Destroy();
 }

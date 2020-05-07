@@ -32,3 +32,16 @@ void ATurnBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 }
 
+bool ATurnBaseCharacter::MoveToTargetLocation() {
+	FVector CurrentLocation = GetActorLocation();
+	if (abs(CurrentLocation.X - GridTargetLocation.X) < 10.f && abs(CurrentLocation.Y - GridTargetLocation.Y) < 10.f) return true;
+	
+	// find out which way is forward
+	const FRotator Rotation = (GridTargetLocation - CurrentLocation).Rotation();
+	const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+	// get forward vector
+	const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	AddMovementInput(Direction);
+	return false;
+}

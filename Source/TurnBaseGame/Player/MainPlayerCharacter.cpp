@@ -3,3 +3,6 @@
 
 #include "MainPlayerCharacter.h"
 
+void AMainPlayerCharacter::Tick(float DeltaTime) {
+	Super::Tick(DeltaTime);
+}

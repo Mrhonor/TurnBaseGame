@@ -5,6 +5,8 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/World.h"
+#include "TurnBaseGame/TurnBaseGameModeBase.h"
 #include "Camera/CameraComponent.h"
 
 
@@ -41,9 +43,56 @@ ATurnBasePlayerCharacter::ATurnBasePlayerCharacter() {
 
 	PlayerInputMessage.Empty();
 	PrimaryActorTick.bCanEverTick = true;
+
+	IsNeedToMove = false;
+}
+
+void ATurnBasePlayerCharacter::BeginPlay() {
+	Super::BeginPlay();
+
+	GridTargetLocation = GetActorLocation();
 }
 
 void ATurnBasePlayerCharacter::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
+	if (bControlled) {
+		MouseWheelRoll();
+
+		if (PlayerInputMessage.bMouseRight == true) {
+			ConsumeMouseRightInput();
+		}
+
+		if (IsNeedToMove) {
+			if (MoveToTargetLocation()) {
+				IsNeedToMove = false;
+				if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
+					TestGameMode->UpdateGrid(this, PreGridLocation);
+				}
+			}
+		}
+	}
+
+}
+
+void ATurnBasePlayerCharacter::MouseWheelRoll() {
+	if (PlayerInputMessage.MouseWheelValue != 0.f) {
+		CameraBoom->AddRelativeLocation(FVector(0.f, 0.f, PlayerInputMessage.MouseWheelValue));
+	}
+}
+
+void ATurnBasePlayerCharacter::ConsumeMouseRightInput() {
+	PlayerInputMessage.bMouseRight = false;
+	if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
+		FVector MouseXY = PlayerInputMessage.MouseLocation - PlayerInputMessage.MouseDirection * (PlayerInputMessage.MouseLocation.Z / PlayerInputMessage.MouseDirection.Z);
+		if (TestGameMode->MoveCharacterTo(this, MouseXY)) {
+			IsNeedToMove = true;
+			PreGridLocation = GetActorLocation();
+		}
+	}
+}
+
+void ATurnBasePlayerCharacter::ExitControl() {
+	PlayerInputMessage.Empty();
+	OnControl(false);
 }
 

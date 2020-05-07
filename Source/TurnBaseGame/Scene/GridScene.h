@@ -6,12 +6,43 @@
 #include "GameFramework/Actor.h"
 #include "GridScene.generated.h"
 
+class IGridPropertyInterface;
+class ATurnBaseCharacter;
 /*
 	GridScene is used to create base scene with grid. You can choose the rows, columns, tile size and other property. the AGridScene limit character movement.
 */
 
+USTRUCT(BlueprintType)
+struct FStorageObjectList
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	int32 Row;
+	int32 Col;
+	IGridPropertyInterface* StoragedObject;
+	FStorageObjectList* NextObjectInRow;
+	FStorageObjectList* NextObjectInCol;
+	FStorageObjectList* OverlapObject;
+	FStorageObjectList();
+	FStorageObjectList(int32 row, int32 col, IGridPropertyInterface* storagedObject, FStorageObjectList* nextObjectInRow = nullptr, 
+		FStorageObjectList* nextObjectInCol = nullptr, FStorageObjectList* overlapObject = nullptr);
 
+};
 
+USTRUCT(BlueprintType)
+struct FStorageCharacter
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	int32 Row;
+	int32 Col;
+	ATurnBaseCharacter* TheCharacter;
+	bool IsPlayerCharacter;
+	FStorageCharacter();
+	FStorageCharacter(int32 row, int32 col, ATurnBaseCharacter* theCharacter, bool isPlayerCharacter);
+
+	friend bool operator==(const FStorageCharacter &A, const FStorageCharacter &B);
+};
 
 UCLASS()
 class TURNBASEGAME_API AGridScene : public AActor
@@ -21,6 +52,7 @@ class TURNBASEGAME_API AGridScene : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AGridScene();
+	~AGridScene();
 
 	// use proceddural mesh component to draw lines
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
@@ -29,7 +61,6 @@ public:
 	// use proceddural mesh component to draw a tile
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
 		class UProceduralMeshComponent* TileProceduralMesh;
-
 
 	// the color of line
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
@@ -60,20 +91,34 @@ public:
 		UMaterialInterface *TileMaterial;
 
 	// the rows of tile
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Property")
 		int32 TileRow;
 
 	// the Columns of tile
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Property")
 		int32 TileCol;
 
 	// the size of tile
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Property")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Property")
 		float TileSize;
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	TArray<FStorageCharacter> CharacterArray;
+
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "StorageObject", meta = (AllowprivateAccess = "true"))
+		int32 ObjectTotalNum;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "StorageObject", meta = (AllowprivateAccess = "true"))
+		int32 ObjectRowNum;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "StorageObject", meta = (AllowprivateAccess = "true"))
+		int32 ObjectColNum;
+
+	TArray<FStorageObjectList*> ObjectRowList;
+	TArray<FStorageObjectList*> ObjectColList;
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "StorageObject", meta = (AllowprivateAccess = "true"))
+	//	ATurnBasePlayerCharacter* CurrentPlayerCharacter;
 
 public:	
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -99,6 +144,97 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Grid")
 		bool GetGridPosition(const FVector& Location, int32 &Row, int32 &Col);
+
+	/**
+	* For the Given Index return the location.
+	* @param  Row			   input row
+	* @param  Col			   input col
+	* @param  IsCenter		   if value is true return the Center Location, Value is false return Left-down Location Value 
+	* return                   The location that the index point to. No matter what index was given.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		FVector GetGridLocation(int32 Row, int32 Col, bool IsCenter = true);
+
+	/**
+	* Add a new object into Cross Lists
+	* @param  NewGridObject  the object wait for add
+	* @return            is it add successfully
+	*/
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool AddObjectIntoGrid(AActor* NewGridObject);
+
+	/**
+	* check whether has a block object on a tile
+	* @param  Row		Row of Object
+	* @param  Col		Col of Object
+	*/
+	UFUNCTION(BlueprintPure, Category = "StorageObject")
+		bool IsBlockingObject(int32 Row, int32 Col);
+
+	/**
+	* Move the given object to the appointed position, the object show have the interface of IGridPropertyInterface.
+	* @param  MovedObject      the object need to move
+	* @param  Row			   which row does the object move to
+	* @param  Col			   which col does the object move to
+	* @param  IsCenter		   Does it move to the center
+	* @param  IsMove		   Should it move
+	* @return				   is it moved successfully
+	*/
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool MoveObjectTo(AActor* MovedObject, int32 Row, int32 Col, bool IsCenter = true, bool IsMove = true);
+	
+	// just move object list in grid
+	bool MoveObjectTo(AActor* MovedObject,int32 PreRow, int32 PreCol, int32 Row, int32 Col, bool IsCenter = true, bool IsMove = false);
+
+	/**
+	* move the given character to the appointed position, the object show have the interface of IGridPropertyInterface. The character can only move one tile.
+	* @param	MoveCharacter	The Character need to move.
+	* @param	DeltaRow		the delta tile in row
+	* @param	DeltaCol		the delta tile in col
+	* @return					is it moved successfully
+	*/
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool MoveCharacterTo(ATurnBaseCharacter* MovedCharacter, int32 DeltaRow, int32 DeltaCol);
+
+	/** Show the Section on the screen
+	* @param  ShowLocation		The location want to show
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		void ShowSelectSection(const FVector &ShowLocation);
+
+	/**
+	* Search A path to target Row and Col
+	* @Param  Path            Storage the  Path
+	* @return				  Does it have a road to the target
+	*/
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool PathSearch(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol);
+
+	/**
+	* use to update character position in grid
+	* @Param  MovedCharacter        the character need to update
+	* @Param  PreLocation			the location before update
+	* @return						Does it update successfully
+	*/
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool UpdateGrid(ATurnBaseCharacter* MovedCharacter, const FVector& PreLocation);
+
+
+	void DeleteStorageObject(int32 Row, int32 Col);
+
+	FStorageObjectList* GetGridObject(int32 Row, int32 Col);
+
+protected:
+	
+	/**
+	* Insert a object into the cross list
+	*/
+	bool InsertObjectIntoCrossList(IGridPropertyInterface* Object, int32 Row, int32 Col);
+
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+	void DeleteAllTheOverLapObject(FStorageObjectList* DeletePtr);
 
 private:
 	/**
@@ -133,5 +269,12 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "Property", meta = (AllowPrivateAccess = "true"))
 		void CreateTile(TArray<FVector> &Vertices, TArray<int32>& Triangles);
 
+	/**
+	* The function use to delete the whole Col list.
+	* @param  DeletePtr   The List need to be delete
+	*/
+	void DeleteTheColList(FStorageObjectList * DeletePtr);
 
+	// use recursion to search
+	bool Searching(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol, int32 index);
 };

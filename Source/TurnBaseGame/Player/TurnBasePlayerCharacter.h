@@ -52,6 +52,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input")
 		void OnControl(bool ControlState) { bControlled = ControlState; }
 
-protected:
+	UFUNCTION(BlueprintCallable, Category = "Control")
+		virtual void ExitControl();
 
+
+protected:
+	virtual void BeginPlay() override;
+
+	// handle for mouse wheel roll
+	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
+		void MouseWheelRoll();
+
+	// consume mouse right input -- move to given place
+	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
+		void ConsumeMouseRightInput();
 };

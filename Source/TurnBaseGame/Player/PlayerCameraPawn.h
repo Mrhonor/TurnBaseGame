@@ -46,13 +46,7 @@ private:
 	// check whether or not left mouse key press and release hit the same actor.
 	bool StartHit;
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
 
-	// the function use to unpossess this pawn and empty the input
-	UFUNCTION(BlueprintCallable, Category = "Input")
-		void ResetPlayerControl();
 
 public:	
 	// Called every frame
@@ -71,5 +65,29 @@ public:
 		void OnControl(bool ControlState) { bControlled = ControlState; }
 
 	UFUNCTION(BlueprintCallable, Category = "Control")
+		virtual void ExitControl();
+
+protected:
+	/** handle for Mouse Left key 
+	*	@param Hit  null
+	*   @return null
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
 		bool MouseLeftKeyProcess(const FHitResult& Hit);
+
+	// handle for mouse wheel roll
+	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
+		void MouseWheelRoll();
+
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+
+private:
+	// the function use to unpossess this pawn and empty the input
+	UFUNCTION(BlueprintCallable, Category = "Input", meta = (AllowPrivateAccess = "true"))
+		void ResetPlayerControl();
+
+	UFUNCTION(BlueprintCallable, Category = "Control", meta = (AllowPrivateAccess = "true"))
+		void ChangeControl();
 };
