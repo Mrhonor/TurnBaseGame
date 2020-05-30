@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TurnBaseGame/Character/TurnBaseCharacter.h"
+#include "TurnBaseCharacter.h"
 #include "PlayerCameraPawn.h"
+#include "InputBridge.h"
 #include "TurnBasePlayerCharacter.generated.h"
 
-
+class UGridManagerComponent;
 /**
  * 
  */
@@ -30,13 +31,23 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (BlueprintProtected = "true"))
 		class UCameraComponent* TopDownCamera;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ShadowCharacter", meta = (BlueprintProtected = "true"))
+		class UShadowPlayerComponent* ShadowPlayerComponent;
+
+	
 private:
 	// is it controlled by PlayerController
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
 		bool bControlled;
 
+	FTransform CameraTransform;
+
+	UGridManagerComponent* CurrentGridManager;
+
 public:
 	ATurnBasePlayerCharacter();
+
+	// virtual void OnConstruction(const FTransform& Transform) override;
 
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -48,13 +59,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Camera)
 		FORCEINLINE class UCameraComponent* GetTopDownCamera() const { return TopDownCamera;}
 
-	// set this pawn controll state
+	// set this pawn control state
 	UFUNCTION(BlueprintCallable, Category = "Input")
 		void OnControl(bool ControlState) { bControlled = ControlState; }
 
 	UFUNCTION(BlueprintCallable, Category = "Control")
 		virtual void ExitControl();
 
+	// Reset the camera to the preview location
+	UFUNCTION(BlueprintCallable, Category = Camera)
+		void ResetCamera();
+
+	/**
+	 * get the ordet executing state
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		FORCEINLINE bool GetOrderExecuting() const { return OrderProcessComponent->GetOrderExecuting(); }
+
+
+	void DestroyShadowCharacter();
+	
+	// move the character to target location within the grid limitation
+	virtual void AddGridMovementInput(const FVector& TargetLocation) override;
+
+	// move the camera base on mouse cursor
+	virtual void CameraMove(float XValue, float YValue) override;
+
+	void BackspacePressed();
 
 protected:
 	virtual void BeginPlay() override;
@@ -66,4 +97,7 @@ protected:
 	// consume mouse right input -- move to given place
 	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
 		void ConsumeMouseRightInput();
+
+	virtual void OrderBackspace() override;
+
 };

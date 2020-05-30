@@ -8,16 +8,32 @@ public class TurnBaseGame : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent", "UMG" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent", "UMG", "GameplayAbilities", "GameplayTags", "GameplayTasks" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { "ProceduralMeshComponent", "Slate", "SlateCore" });
 
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-		
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
+        // Uncomment if you are using Slate UI
+        // PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
-	}
+        // Uncomment if you are using online features
+        // PrivateDependencyModuleNames.Add("OnlineSubsystem");
+
+        // To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+
+        PublicIncludePaths.AddRange(
+        new string[] {
+        "TurnBaseGame/Public/Character",
+        "TurnBaseGame/Public/Character/Player",
+        "TurnBaseGame/Public/Scene"
+        }
+        );
+
+        PrivateIncludePaths.AddRange(
+        new string[] {
+        "TurnBaseGame/Private/Character",
+        "TurnBaseGame/Private/Character/Player",
+        "TurnBaseGame/Private/Scene"
+        }
+        );
+    }
 }

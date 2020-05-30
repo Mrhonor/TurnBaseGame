@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "OrderInput.h"
 #include "GridScene.generated.h"
 
 class IGridPropertyInterface;
 class ATurnBaseCharacter;
+class UOrderProcessComponent;
 /*
 	GridScene is used to create base scene with grid. You can choose the rows, columns, tile size and other property. the AGridScene limit character movement.
 */
@@ -36,10 +38,11 @@ struct FStorageCharacter
 public:
 	int32 Row;
 	int32 Col;
-	ATurnBaseCharacter* TheCharacter;
+	ACharacter* TheCharacter;
+	UOrderProcessComponent* OrderProcessComponent;
 	bool IsPlayerCharacter;
 	FStorageCharacter();
-	FStorageCharacter(int32 row, int32 col, ATurnBaseCharacter* theCharacter, bool isPlayerCharacter);
+	FStorageCharacter(int32 row, int32 col, ACharacter* theCharacter, bool isPlayerCharacter);
 
 	friend bool operator==(const FStorageCharacter &A, const FStorageCharacter &B);
 };
@@ -48,7 +51,9 @@ UCLASS()
 class TURNBASEGAME_API AGridScene : public AActor
 {
 	GENERATED_BODY()
-	
+
+	friend class ATurnBaseGameModeBase;
+
 public:	
 	// Sets default values for this actor's properties
 	AGridScene();
@@ -102,6 +107,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Property")
 		float TileSize;
 
+	bool bOrderProcess;
+
 	TArray<FStorageCharacter> CharacterArray;
 
 private:
@@ -123,6 +130,9 @@ private:
 public:	
 	virtual void OnConstruction(const FTransform& Transform) override;
 	
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
 	// The function get the width of grid. 
 	UFUNCTION(BlueprintPure, Category = "Property")
 		FORCEINLINE float GetGridWidth() const { return TileSize * TileCol; }
@@ -154,6 +164,14 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Grid")
 		FVector GetGridLocation(int32 Row, int32 Col, bool IsCenter = true);
+
+	/**
+	* Get the Center location of grid
+	* @param   Location       Current Location
+	* @return  The center location
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		FVector GetGridCenter(const FVector& Location);
 
 	/**
 	* Add a new object into Cross Lists
@@ -194,7 +212,10 @@ public:
 	* @return					is it moved successfully
 	*/
 	UFUNCTION(BlueprintCallable, Category = "StorageObject")
-		bool MoveCharacterTo(ATurnBaseCharacter* MovedCharacter, int32 DeltaRow, int32 DeltaCol);
+		bool MoveCharacterByDeltaIndex(ATurnBaseCharacter* MovedCharacter, int32 DeltaRow, int32 DeltaCol);
+
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		bool MoveCharacterToLocation(ATurnBaseCharacter* MovedCharacter, const FVector &TargetLocation);
 
 	/** Show the Section on the screen
 	* @param  ShowLocation		The location want to show
@@ -219,6 +240,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "StorageObject")
 		bool UpdateGrid(ATurnBaseCharacter* MovedCharacter, const FVector& PreLocation);
 
+	// enable the ability of character input order in CharacterArray
+	UFUNCTION(BlueprintCallable, Category = "StorageObject")
+		void EnableCharacterBattleInput(bool NewState);
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		bool OrderProcess();
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		bool CanCharacterMoveTo(const FVector &CurrentLocation, const FVector &TargetLocation);
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		FOrderInput GetLatestOrder(ATurnBaseCharacter* TheCharacter);
+
+	// clear the latest order
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		void ClearLatestOrder(ATurnBaseCharacter* TheCharacter);
+
 
 	void DeleteStorageObject(int32 Row, int32 Col);
 
@@ -226,6 +264,8 @@ public:
 
 protected:
 	
+	void ClearAllShadowCharacter();
+
 	/**
 	* Insert a object into the cross list
 	*/
@@ -277,4 +317,7 @@ private:
 
 	// use recursion to search
 	bool Searching(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol, int32 index);
+
+	// search target character in CharacterArray.If found return index, not found return -1.
+	int32 SearchCharacter(ATurnBaseCharacter* SearchTarget);
 };

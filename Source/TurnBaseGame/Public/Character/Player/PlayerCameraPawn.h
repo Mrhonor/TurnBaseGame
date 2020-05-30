@@ -67,6 +67,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control")
 		virtual void ExitControl();
 
+	UFUNCTION(BlueprintCallable, Category = "Control")
+		void CameraMove(float XValue, float YValue);
+
 protected:
 	/** handle for Mouse Left key 
 	*	@param Hit  null

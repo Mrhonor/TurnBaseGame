@@ -3,7 +3,7 @@
 
 #include "PlayerCameraPawn.h"
 #include "Components/InputComponent.h"
-#include "TurnBaseGame/Character/TurnBaseCharacter.h"
+#include "TurnBasePlayerCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
@@ -54,7 +54,6 @@ void APlayerCameraPawn::Tick(float DeltaTime)
 		FVector2D MoveXY = PlayerInputMessage.MovementInput.GetSafeNormal() * CameraMoveSpeed * DeltaTime + FVector2D(GetActorLocation().X, GetActorLocation().Y);
 		FVector Movement = FVector(MoveXY, GetActorLocation().Z);
 		SetActorLocation(Movement);
-
 		MouseWheelRoll();
 
 		if (PlayerInputMessage.bMouseLeft && !StartHit) {
@@ -102,4 +101,9 @@ void APlayerCameraPawn::ChangeControl() {
 void APlayerCameraPawn::ExitControl() {
 	ResetPlayerControl();
 	Destroy();
+}
+
+void APlayerCameraPawn::CameraMove(float XValue, float YValue){
+	const float Scale = 20.f;
+	SetActorLocation(GetActorLocation() + FVector(-YValue * Scale, XValue * Scale, 0));
 }

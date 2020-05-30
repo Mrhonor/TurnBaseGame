@@ -3,10 +3,4 @@
 
 #include "InputBridge.h"
 
-InputBridge::InputBridge()
-{
-}
 
-InputBridge::~InputBridge()
-{
-}

@@ -4,8 +4,12 @@
 #include "GridScene.h"
 #include "ProceduralMeshComponent.h"
 #include "Kismet/KismetMaterialLibrary.h"
-#include "TurnBaseGame/Scene/GridPropertyInterface.h"
-#include "TurnBaseGame/Character/TurnBaseCharacter.h"
+#include "GridPropertyInterface.h"
+#include "TurnBaseCharacter.h"
+#include "TurnBasePlayerCharacter.h"
+#include "Engine/World.h"
+#include "TurnBaseGameModeBase.h"
+#include "OrderProcessComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 const static int CHARACTER_HALF_HEIGHT_ABOVE_GROUND = 88.f;
@@ -29,18 +33,24 @@ FStorageObjectList::FStorageObjectList(int32 row, int32 col, IGridPropertyInterf
 	OverlapObject = overlapObject;
 }
 
-FStorageCharacter::FStorageCharacter() {
-	Row = -1;
-	Col = -1;
-	TheCharacter = nullptr;
-	IsPlayerCharacter = false;
+FStorageCharacter::FStorageCharacter()
+	: Row(-1),
+	  Col(-1),
+	  TheCharacter(nullptr),
+	  OrderProcessComponent(nullptr),
+	  IsPlayerCharacter(false)
+{
 }
 
-FStorageCharacter::FStorageCharacter(int32 row, int32 col, ATurnBaseCharacter* theCharacter, bool isPlayerCharacter) {
-	Row = row;
-	Col = col;
-	TheCharacter = theCharacter;
-	IsPlayerCharacter = isPlayerCharacter;
+FStorageCharacter::FStorageCharacter(int32 row, int32 col, ACharacter* theCharacter, bool isPlayerCharacter)
+	: Row(row),
+	Col(col),
+	TheCharacter(theCharacter),
+	IsPlayerCharacter(isPlayerCharacter)
+{
+	if (theCharacter) {
+		OrderProcessComponent = theCharacter->FindComponentByClass<UOrderProcessComponent>();
+	}
 }
 
 bool operator==(const FStorageCharacter &A, const FStorageCharacter &B) {
@@ -56,7 +66,7 @@ bool operator==(const FStorageCharacter &A, const FStorageCharacter &B) {
 AGridScene::AGridScene()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DefaultSceneComponent"));
 
@@ -75,6 +85,7 @@ AGridScene::AGridScene()
 	ObjectTotalNum = 0;
 	ObjectRowNum = 0;
 	ObjectColNum = 0;
+	bOrderProcess = false;
 }
 
 AGridScene::~AGridScene() {
@@ -129,6 +140,18 @@ void AGridScene::OnConstruction(const FTransform& Transform) {
 	ObjectColList.Init(nullptr, TileCol);
 
 	//this->RegisterAllComponents();
+}
+
+void AGridScene::Tick(float DeltaTime){
+	Super::Tick(DeltaTime);
+
+	if (bOrderProcess) {
+		if (!OrderProcess()) {
+			if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
+				TestGameMode->SetCurrentGameState(ETurnBasePlayState::EBattlePrepare);
+			}
+		}
+	}
 }
 
 bool AGridScene::IsInRange(int32 Row, int32 Col) {
@@ -282,10 +305,25 @@ FStorageObjectList* AGridScene::GetGridObject(int32 Row, int32 Col) {
 	}
 }
 
+void AGridScene::ClearAllShadowCharacter(){
+	for (FStorageCharacter &i : CharacterArray) {
+		if (ATurnBasePlayerCharacter* TestCharacter = Cast<ATurnBasePlayerCharacter>(i.TheCharacter)) {
+			TestCharacter->DestroyShadowCharacter();
+		}
+	}
+}
+
 FVector AGridScene::GetGridLocation(int32 Row, int32 Col, bool IsCenter) {
 	FVector TargetLocation = GetActorLocation() + FVector(Row * TileSize, Col * TileSize, 0.f);
 	if (IsCenter)	return TargetLocation + FVector(TileSize / 2.f, TileSize / 2.f, 0.f);
 	else			return TargetLocation;
+}
+
+FVector AGridScene::GetGridCenter(const FVector & Location)
+{
+	int32 Row, Col;
+	GetGridPosition(Location, Row, Col);
+	return GetGridLocation(Row, Col, true);
 }
 
 void AGridScene::ShowSelectSection(const FVector &ShowLocation) {
@@ -308,7 +346,6 @@ bool AGridScene::MoveObjectTo(AActor* MovedObject, int32 Row, int32 Col, bool Is
 
 	GetGridPosition(MovedObject->GetActorLocation(), CurrentRow, CurrentCol);
 	if (CurrentRow == Row && CurrentCol == Col) return true;
-	UE_LOG(LogTemp, Warning, TEXT("3"));
 	if (IsInRange(CurrentRow, CurrentCol)) {
 		FStorageObjectList* ObjectList = GetGridObject(CurrentRow, CurrentCol);
 
@@ -348,17 +385,14 @@ bool AGridScene::MoveObjectTo(AActor * MovedObject, int32 PreRow, int32 PreCol, 
 	if (TestInterface == nullptr || !IsInRange(Row, Col)) return false;
 
 	if (PreRow == Row && PreCol == Col) return true;
-	UE_LOG(LogTemp, Warning, TEXT("3"));
 	if (IsInRange(PreRow, PreCol)) {
 		FStorageObjectList* ObjectList = GetGridObject(PreRow, PreCol);
 
 		if (ObjectList == nullptr) {
-			UE_LOG(LogTemp, Warning, TEXT("4"));
 			return InsertObjectIntoCrossList(TestInterface, Row, Col);
 		}
 
 		if (ObjectList->OverlapObject == nullptr) {
-			UE_LOG(LogTemp, Warning, TEXT("5: pre: %d, %d"), PreRow, PreCol);
 			DeleteStorageObject(PreRow, PreCol);
 		}
 
@@ -372,7 +406,7 @@ bool AGridScene::MoveObjectTo(AActor * MovedObject, int32 PreRow, int32 PreCol, 
 			}
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("6"));
+
 	if (InsertObjectIntoCrossList(TestInterface, Row, Col)) {
 		if (IsMove)
 			MovedObject->SetActorLocation(GetGridLocation(Row, Col, IsCenter) + FVector(0.f, 0.f, CHARACTER_HALF_HEIGHT_ABOVE_GROUND));
@@ -382,7 +416,7 @@ bool AGridScene::MoveObjectTo(AActor * MovedObject, int32 PreRow, int32 PreCol, 
 	else return false;
 }
 
-bool AGridScene::MoveCharacterTo(ATurnBaseCharacter* MovedCharacter, int32 DeltaRow, int32 DeltaCol) {
+bool AGridScene::MoveCharacterByDeltaIndex(ATurnBaseCharacter* MovedCharacter, int32 DeltaRow, int32 DeltaCol) {
 	if (DeltaRow == 0 && DeltaCol == 0) return true;
 
 	int32 CurrentRow = 0;
@@ -400,14 +434,26 @@ bool AGridScene::MoveCharacterTo(ATurnBaseCharacter* MovedCharacter, int32 Delta
 	return true;
 }
 
+bool AGridScene::MoveCharacterToLocation(ATurnBaseCharacter * MovedCharacter, const FVector & TargetLocation)
+{
+	int32 TargetRow = 0;
+	int32 TargetCol = 0;
+	if (GetGridPosition(TargetLocation, TargetRow, TargetCol)) {
+		if (!IsBlockingObject(TargetRow, TargetCol)) {
+			MovedCharacter->AddGridMovementInput(GetGridLocation(TargetRow, TargetCol));
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 bool AGridScene::InsertObjectIntoCrossList(IGridPropertyInterface* Object, int32 Row, int32 Col) {
-	UE_LOG(LogTemp, Warning, TEXT("7"));
 	if (IsBlockingObject(Row, Col) && Object->IsBlockTheCharacter()) return false;
 
 	FStorageObjectList* NewObjectPtr = new FStorageObjectList(Row, Col, Object);
 	if (ObjectRowList[Row] != nullptr) {
-		UE_LOG(LogTemp, Warning, TEXT("12"));
 		FStorageObjectList* FindThePlaceToInsert = ObjectRowList[Row];
 		if (Col >= FindThePlaceToInsert->Col) {
 			// find the place
@@ -429,7 +475,6 @@ bool AGridScene::InsertObjectIntoCrossList(IGridPropertyInterface* Object, int32
 			}
 		}
 		else {
-			UE_LOG(LogTemp, Warning, TEXT("13"));
 			NewObjectPtr->NextObjectInRow = FindThePlaceToInsert;
 			ObjectRowList[Row] = NewObjectPtr;
 		}
@@ -467,6 +512,77 @@ bool AGridScene::InsertObjectIntoCrossList(IGridPropertyInterface* Object, int32
 	ObjectTotalNum++;
 
 	return true;
+}
+
+void AGridScene::EnableCharacterBattleInput(bool NewState){
+	for (auto &i : CharacterArray) {
+		i.OrderProcessComponent->SetEnableBattleInput(NewState);
+	}
+}
+
+
+bool AGridScene::OrderProcess(){
+	bool bHaveOrder = false;
+	for (FStorageCharacter& CharacterStruct : CharacterArray) {
+		if (!CharacterStruct.OrderProcessComponent->GetOrderExecuting()) {
+			if(CharacterStruct.OrderProcessComponent->GetCurrentOrderNum() > 0) {
+				bHaveOrder = true;
+				const FOrderInput CurrentOrder = CharacterStruct.OrderProcessComponent->GetFirstOrder();
+				const FVector CurrentLoc = CharacterStruct.TheCharacter->GetActorLocation();
+				const FVector TargetLoc = CurrentOrder.TargetLocation;
+
+				switch (CurrentOrder.OrderType)
+				{
+				case EMoveOrder:
+					if (CanCharacterMoveTo(CurrentLoc, TargetLoc)) {
+						CharacterStruct.OrderProcessComponent->ExecutrFirstOrder();
+					}
+					break;
+				default:
+					CharacterStruct.OrderProcessComponent->ExecutrFirstOrder();
+					break;
+				}
+			}
+		}
+		else {
+			bHaveOrder = true;
+		}
+	}
+	return bHaveOrder;
+}
+
+bool AGridScene::CanCharacterMoveTo(const FVector &CurrentLocation, const FVector &TargetLocation){
+	int32 TargetRow = 0;
+	int32 TargetCol = 0;
+	int32 CurrentRow = 0;
+	int32 CurrentCol = 0;
+	if (GetGridPosition(TargetLocation, TargetRow, TargetCol)) {
+		if (GetGridPosition(CurrentLocation, CurrentRow, CurrentCol)) {
+			int32 DeltaRow = TargetRow - CurrentRow;
+			int32 DeltaCol = TargetCol - CurrentCol;
+			if (IsInRange(TargetRow, TargetRow) && !IsBlockingObject(TargetRow, TargetCol)) {
+				if (abs(DeltaRow) <= 1 && abs(DeltaCol) <= 1) return true;
+			}
+		}
+	}
+	return false;
+}
+
+FOrderInput AGridScene::GetLatestOrder(ATurnBaseCharacter * TheCharacter)
+{
+	int32 index = SearchCharacter(TheCharacter);
+	if (index >= 0) {
+		return CharacterArray[index].OrderProcessComponent->GetLatestOrder();
+	}
+
+	return FOrderInput();
+}
+
+void AGridScene::ClearLatestOrder(ATurnBaseCharacter * TheCharacter){
+	int32 index = SearchCharacter(TheCharacter);
+	if (index >= 0) {
+		CharacterArray[index].OrderProcessComponent->ClearLatestOrder();
+	}
 }
 
 void AGridScene::DeleteStorageObject(int32 Row, int32 Col) {
@@ -535,13 +651,23 @@ bool AGridScene::Searching(TArray<FVector2D> &Path, int32 CurrentRow, int32 Curr
 	return false;
 }
 
+int32 AGridScene::SearchCharacter(ATurnBaseCharacter * SearchTarget)
+{
+	int32 index = -1;
+	for (int32 i = 0; i < CharacterArray.Num(); i++) {
+		if (CharacterArray[i].TheCharacter == SearchTarget) {
+			index = i;
+			break;
+		}
+	}
+	return index;
+}
+
 bool AGridScene::UpdateGrid(ATurnBaseCharacter* MovedCharacter, const FVector& PreLocation) {
 	IGridPropertyInterface* TestInterface = Cast<IGridPropertyInterface>(MovedCharacter);
 	int32 PreRow = 0;
 	int32 PreCol = 0;
-
 	GetGridPosition(PreLocation, PreRow, PreCol);
-	UE_LOG(LogTemp, Warning, TEXT("1"));
 	if (TestInterface == nullptr || !IsInRange(PreRow, PreCol)) return false;
 
 	int32 CurrentRow = 0;
@@ -552,7 +678,6 @@ bool AGridScene::UpdateGrid(ATurnBaseCharacter* MovedCharacter, const FVector& P
 
 	if (CharacterArray.Find(FStorageCharacter(PreRow, PreCol, MovedCharacter, false), index)) {
 		if (!IsInRange(CurrentRow, CurrentCol)) {
-			UE_LOG(LogTemp, Warning, TEXT("2"));
 			CharacterArray.RemoveAt(index);
 			FStorageObjectList* ObjectList = GetGridObject(CurrentRow, CurrentCol);
 
@@ -573,7 +698,6 @@ bool AGridScene::UpdateGrid(ATurnBaseCharacter* MovedCharacter, const FVector& P
 		else {
 			CharacterArray[index].Row = CurrentRow;
 			CharacterArray[index].Col = CurrentCol;
-			UE_LOG(LogTemp, Warning, TEXT("index: %d"), index);
 			MoveObjectTo(MovedCharacter, PreRow, PreCol, CurrentRow, CurrentCol, true, false);
 		}
 	}
