@@ -32,38 +32,38 @@ void ATurnBaseGameModeBase::BeginPlay() {
 void ATurnBaseGameModeBase::SetCurrentGameState(ETurnBasePlayState NewState) {
 	if (NewState == CurrentGameState) return;
 	CurrentGameState = NewState;
+	OnGameStateChange.Broadcast(CurrentGameState);
 	switch (NewState)
 	{
-	case EPlaying:
+	case ETurnBasePlayState::EPlaying:
 		break;
-	case EBattle:
+	case ETurnBasePlayState::EBattle:
 		if (GridManagerComponent && GridManagerComponent->GridSpawn())
 		{
-			SetCurrentGameState(EBattlePrepare);
+			SetCurrentGameState(ETurnBasePlayState::EBattlePrepare);
 		}
 		break;
-	case EBattlePrepare:
+	case ETurnBasePlayState::EBattlePrepare:
 		if (GridManagerComponent->GetSpawnedGrid()) {
 			GridManagerComponent->GetSpawnedGrid()->bOrderProcess = false;
 			GridManagerComponent->GetSpawnedGrid()->EnableCharacterBattleInput(true);
 		}
 		break;
-	case EBattling:
+	case ETurnBasePlayState::EBattling:
 		if (GridManagerComponent->GetSpawnedGrid()) {
 			GridManagerComponent->GetSpawnedGrid()->EnableCharacterBattleInput(false);
 			GridManagerComponent->GetSpawnedGrid()->bOrderProcess = true;
 			GridManagerComponent->GetSpawnedGrid()->ClearAllShadowCharacter();
 		}
 		break;
-	case EBattleWon:
+	case ETurnBasePlayState::EBattleWon:
 		break;
-	case EBattleLose:
+	case ETurnBasePlayState::EBattleLose:
 		break;
-	case EUnknow:
+	case ETurnBasePlayState::EUnknow:
 		break;
 	default:
 		break;
 	}
 
-	OnGameStateChange.Broadcast(CurrentGameState);
 }

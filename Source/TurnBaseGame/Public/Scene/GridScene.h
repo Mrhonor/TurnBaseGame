@@ -28,7 +28,6 @@ public:
 	FStorageObjectList();
 	FStorageObjectList(int32 row, int32 col, IGridPropertyInterface* storagedObject, FStorageObjectList* nextObjectInRow = nullptr, 
 		FStorageObjectList* nextObjectInCol = nullptr, FStorageObjectList* overlapObject = nullptr);
-
 };
 
 USTRUCT(BlueprintType)

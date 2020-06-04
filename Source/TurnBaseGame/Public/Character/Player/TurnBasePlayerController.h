@@ -8,6 +8,9 @@
 #include "OrderInput.h"
 #include "TurnBasePlayerController.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FKeyPressedDelegate, FKey, key);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FKeyReleasedDelegate, FKey, key);
+
 class UGridManagerComponent;
 class ATurnBaseGameModeBase;
 
@@ -20,6 +23,9 @@ class TURNBASEGAME_API ATurnBasePlayerController : public APlayerController
 	GENERATED_BODY()
 public:
 	FPlayerCameraInput* PlayerInputMessagePtr;
+
+	FKeyPressedDelegate OnKeyPressed;
+	FKeyReleasedDelegate OnKeyReleased;
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control", meta = (BlueprintProtected = "true"))
@@ -62,6 +68,8 @@ protected:
 	void Battle();
 	void Battling();
 	void Backspace();
+	void DoAttack();
+	void EndAttack();
 	// End for handling
 	/* ****************************************** */
 

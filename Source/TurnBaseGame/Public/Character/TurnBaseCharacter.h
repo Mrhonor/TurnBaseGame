@@ -7,17 +7,32 @@
 #include "GridPropertyInterface.h"
 #include "OrderInput.h"
 #include "OrderProcessComponent.h"
+#include "AbilitySystemComponent.h"
+#include "AbilitySystemInterface.h"
+#include "BaseAttributeSet.h"
 #include "TurnBaseCharacter.generated.h"
 
 
 UCLASS()
-class TURNBASEGAME_API ATurnBaseCharacter : public ACharacter, public IGridPropertyInterface
+class TURNBASEGAME_API ATurnBaseCharacter : public ACharacter, public IGridPropertyInterface, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Abilities)
+		TArray <TSubclassOf<class UGameplayAbility>> GameplayAbilities;
 
+	/** Passive gameplay effects applied on creation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Abilities)
+		TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
 protected:
+	/** List of attributes modified by the ability system */
+	UPROPERTY()
+		UBaseAttributeSet* AttributeSet;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Abilities, meta = (BlueprintProtected = "true"))
+		UAbilitySystemComponent* AbilitySystemComponent;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Order")
 		UOrderProcessComponent* OrderProcessComponent;
 
@@ -32,7 +47,12 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Move", meta = (BlueprintProtected = "true"))
 		bool bNeedToMove;
 
+	UPROPERTY(BlueprintReadOnly, Category = "GameMode")
 	ETurnBasePlayState CurrentGameState;
+
+private:
+	bool bAbilitiesInitialized;
+
 public:
 	// Sets default values for this character's properties
 	ATurnBaseCharacter();
@@ -56,12 +76,28 @@ public:
 		virtual void AddGridMovementInput(const FVector& TargetLocation) { GridTargetLocation = TargetLocation; }
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
-		virtual UOrderProcessComponent* GetOrderProcessComponent() const { return OrderProcessComponent; }
+		FORCEINLINE UOrderProcessComponent* GetOrderProcessComponent() const { return OrderProcessComponent; }
 
+	UFUNCTION(BlueprintCallable, Category = Abilities)
+		FORCEINLINE UAbilitySystemComponent* GetAbilitySystemComponent() const { return AbilitySystemComponent; }
+
+	/** Returns current health, will be 0 if dead */
+	UFUNCTION(BlueprintCallable)
+		virtual float GetHealth() const;
+
+	/** Returns maximum health, health will never be greater than this */
+	UFUNCTION(BlueprintCallable)
+		virtual float GetMaxHealth() const;
+
+	/** Returns current health, will be 0 if dead */
+	UFUNCTION(BlueprintCallable)
+		virtual int32 GetCharacterLevel() const;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void PossessedBy(AController* controller) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Input")
 		virtual bool MoveToTargetLocation(bool bForce = false);
@@ -70,6 +106,18 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Order", meta = (BlueprintProtected = "true"))
 		virtual void OrderBackspace();
 
+	/**
+	 * Called when health is changed, either from healing or from being damaged
+	 * For damage this is called in addition to OnDamaged/OnKilled
+	 *
+	 * @param DeltaValue Change in health value, positive for heal, negative for cost. If 0 the delta is unknown
+	 * @param EventTags The gameplay tags of the event that changed mana
+	 */
+	UFUNCTION(BlueprintImplementableEvent)
+		void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+
 	UFUNCTION()
 		virtual void OnGameStateChangeDelegate(ETurnBasePlayState NewState);
+
+	virtual void AddStartupGameplayAbilities();
 };

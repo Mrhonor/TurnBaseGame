@@ -35,12 +35,16 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
 		FVector MouseDirection;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Input")
+		TSet<FKey> PressedKey;
+
 	// empty all the things.
 	void Empty() {
 		MovementInput = FVector2D::ZeroVector;
 		MouseLocation = FVector::ZeroVector;
 		MouseDirection = FVector::ZeroVector;
 		bMouseLeft = bMouseRight = false;
+		PressedKey.Empty();
 		CursorHit.Reset();
 	}
 };

@@ -2,7 +2,11 @@
 
 
 #include "OrderProcessComponent.h"
+#include "GridManagerComponent.h"
 #include "TurnBaseCharacter.h"
+#include "Engine/World.h"
+#include "GameFramework/GameModeBase.h"
+#include "Components/ActorComponent.h"
 
 // Sets default values for this component's properties
 UOrderProcessComponent::UOrderProcessComponent()
@@ -17,15 +21,8 @@ UOrderProcessComponent::UOrderProcessComponent()
 	// ...
 }
 
-// Called every frame
-void UOrderProcessComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
-}
-
-void UOrderProcessComponent::AddOrderInput(FOrderInput &InputOrder)
+void UOrderProcessComponent::AddOrderInput(FOrderInput InputOrder)
 {
 	if (OrderList.Num() < MaxOrderNum) {
 		OrderList.Add(InputOrder);
@@ -39,11 +36,11 @@ void UOrderProcessComponent::SetMaxOrderNum(int32 NewNum)
 	}
 }
 
-void UOrderProcessComponent::ExecutrFirstOrder()
+void UOrderProcessComponent::ExecuteFirstOrder_Implementation()
 {
 	if (OrderList.Num() > 0 && !bOrderExecuting) {
 		switch (OrderList[0].OrderType) {
-		case EMoveOrder:
+		case EOrderType::EMoveOrder:
 			if (ATurnBaseCharacter* TestCharacter = Cast<ATurnBaseCharacter>(GetOwner())) {
 				TestCharacter->AddGridMovementInput(OrderList[0].TargetLocation);
 			}
@@ -66,5 +63,12 @@ void UOrderProcessComponent::ClearLatestOrder()
 bool UOrderProcessComponent::CanAddOrderInput() const
 {
 	return bEnableBattleInput && OrderList.Num() < MaxOrderNum;
+}
+
+void UOrderProcessComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	CurrentGridManager = GetWorld()->GetAuthGameMode()->FindComponentByClass<UGridManagerComponent>();
 }
 

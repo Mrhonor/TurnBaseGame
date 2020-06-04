@@ -34,6 +34,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "ShadowCharacter", meta = (BlueprintProtected = "true"))
 		class UShadowPlayerComponent* ShadowPlayerComponent;
 
+	virtual void PossessedBy(AController* controller) override;
+	virtual void UnPossessed() override;
 	
 private:
 	// is it controlled by PlayerController
@@ -42,7 +44,6 @@ private:
 
 	FTransform CameraTransform;
 
-	UGridManagerComponent* CurrentGridManager;
 
 public:
 	ATurnBasePlayerCharacter();
@@ -97,6 +98,20 @@ protected:
 	// consume mouse right input -- move to given place
 	UFUNCTION(BlueprintCallable, Category = "Control", meta = (BlueprintProtected = "true"))
 		void ConsumeMouseRightInput();
+
+	/**
+	 * Called when any key pressed
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Input", meta = (BlueprintProtected = "true"))
+	void KeyPressed(FKey key);
+	virtual void KeyPressed_Implementation(FKey key);
+
+	/**
+	 * Called when any key pressed
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "Input", meta = (BlueprintProtected = "true"))
+	void KeyReleased(FKey key);
+	virtual void KeyReleased_Implementation(FKey key);
 
 	virtual void OrderBackspace() override;
 

@@ -11,7 +11,8 @@
 			"AdditionalDependencies": [
 				"Engine",
 				"ProceduralMeshComponent",
-				"CoreUObject"
+				"CoreUObject",
+				"GameplayAbilities"
 			]
 		}
 	],

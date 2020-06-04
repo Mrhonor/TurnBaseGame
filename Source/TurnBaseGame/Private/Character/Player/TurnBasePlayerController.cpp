@@ -20,7 +20,7 @@ ATurnBasePlayerController::ATurnBasePlayerController() {
 	bShowMouseCursor = true;
 
 	PlayerInputMessagePtr = nullptr;
-	CurrentGameState = EUnknow;
+	CurrentGameState = ETurnBasePlayState::EUnknow;
 
 }
 
@@ -81,6 +81,8 @@ void ATurnBasePlayerController::SetupInputComponent() {
 	InputComponent->BindAction("Battle", IE_Released, this, &ATurnBasePlayerController::Battle);
 	InputComponent->BindAction("Battling", IE_Released, this, &ATurnBasePlayerController::Battling);
 	InputComponent->BindAction("Backspace", IE_Released, this, &ATurnBasePlayerController::Backspace);
+	InputComponent->BindAction("Attack", IE_Pressed, this, &ATurnBasePlayerController::DoAttack);
+	InputComponent->BindAction("Attack", IE_Released, this, &ATurnBasePlayerController::EndAttack);
 
 	InputComponent->BindAxis("MoveX", this, &ATurnBasePlayerController::MoveX);
 	InputComponent->BindAxis("MoveY", this, &ATurnBasePlayerController::MoveY);
@@ -93,6 +95,7 @@ void ATurnBasePlayerController::OnClickMouseLeft() {
 		PlayerInputMessagePtr->bMouseLeft = true;
 		GetHitResultUnderCursor(ECollisionChannel::ECC_Camera, false, PlayerInputMessagePtr->CursorHit);
 	}
+	OnKeyPressed.Broadcast(EKeys::LeftMouseButton);
 }
 
 void ATurnBasePlayerController::OnClickMouseRight() {
@@ -102,6 +105,7 @@ void ATurnBasePlayerController::OnClickMouseRight() {
 
 		DeprojectMousePositionToWorld(PlayerInputMessagePtr->MouseLocation, PlayerInputMessagePtr->MouseDirection);
 	}
+	OnKeyPressed.Broadcast(EKeys::RightMouseButton);
 }
 
 void ATurnBasePlayerController::FinishClickMouseLeft() {
@@ -110,6 +114,7 @@ void ATurnBasePlayerController::FinishClickMouseLeft() {
 
 		GetHitResultUnderCursor(ECollisionChannel::ECC_Camera, false, PlayerInputMessagePtr->CursorHit);
 	}
+	OnKeyReleased.Broadcast(EKeys::LeftMouseButton);
 }
 
 void ATurnBasePlayerController::FinishClickMouseRight() {
@@ -117,6 +122,7 @@ void ATurnBasePlayerController::FinishClickMouseRight() {
 		PlayerInputMessagePtr->bMouseRight = false;
 		GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, PlayerInputMessagePtr->CursorHit);
 	}
+	OnKeyReleased.Broadcast(EKeys::RightMouseButton);
 }
 
 void ATurnBasePlayerController::MoveX(float AxisValue) {
@@ -149,7 +155,7 @@ void ATurnBasePlayerController::CameraOut() {
 
 void ATurnBasePlayerController::Battle() {
 	if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
-		if (TestGameMode->GetCurrentGameState() == ETurnBasePlayState::EPlaying) {
+		if (CurrentGameState == ETurnBasePlayState::EPlaying) {
 			TestGameMode->SetCurrentGameState(ETurnBasePlayState::EBattle);
 		}
 	}
@@ -168,6 +174,22 @@ void ATurnBasePlayerController::Backspace(){
 	if (ATurnBasePlayerCharacter* TestPlayer = Cast<ATurnBasePlayerCharacter>(GetPawn())) {
 		TestPlayer->BackspacePressed();
 	}
+}
+
+void ATurnBasePlayerController::DoAttack()
+{
+	if (PlayerInputMessagePtr != nullptr) {
+		PlayerInputMessagePtr->PressedKey.Add(EKeys::A);
+	}
+	OnKeyPressed.Broadcast(EKeys::A);
+}
+
+void ATurnBasePlayerController::EndAttack()
+{
+	if (PlayerInputMessagePtr != nullptr) {
+		PlayerInputMessagePtr->PressedKey.Remove(EKeys::A);
+	}
+	OnKeyReleased.Broadcast(EKeys::A);
 }
 
 void ATurnBasePlayerController::OnPossess(APawn *InPawn) {

@@ -533,13 +533,13 @@ bool AGridScene::OrderProcess(){
 
 				switch (CurrentOrder.OrderType)
 				{
-				case EMoveOrder:
+				case EOrderType::EMoveOrder:
 					if (CanCharacterMoveTo(CurrentLoc, TargetLoc)) {
-						CharacterStruct.OrderProcessComponent->ExecutrFirstOrder();
+						CharacterStruct.OrderProcessComponent->ExecuteFirstOrder();
 					}
 					break;
 				default:
-					CharacterStruct.OrderProcessComponent->ExecutrFirstOrder();
+					CharacterStruct.OrderProcessComponent->ExecuteFirstOrder();
 					break;
 				}
 			}

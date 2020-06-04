@@ -12,8 +12,11 @@ ATurnBaseCharacter::ATurnBaseCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 
 	OrderProcessComponent = CreateDefaultSubobject<UOrderProcessComponent>(TEXT("OrderProcessComponent"));
+	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	AttributeSet = CreateDefaultSubobject<UBaseAttributeSet>(TEXT("AttributeSet"));
 
-	CurrentGameState = EUnknow;
+	CurrentGameState = ETurnBasePlayState::EUnknow;
+	bAbilitiesInitialized = false;
 }
 
 // Called when the game starts or when spawned
@@ -23,6 +26,16 @@ void ATurnBaseCharacter::BeginPlay()
 	
 	if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
 		TestGameMode->OnGameStateChange.AddDynamic(this, &ATurnBaseCharacter::OnGameStateChangeDelegate);
+	}
+}
+
+void ATurnBaseCharacter::PossessedBy(AController* controller)
+{
+	Super::PossessedBy(controller);
+
+	if (AbilitySystemComponent) {
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+		AddStartupGameplayAbilities();
 	}
 }
 
@@ -41,6 +54,21 @@ void ATurnBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 }
 
 void ATurnBaseCharacter::CameraMove(float XValue, float YValue){
+}
+
+float ATurnBaseCharacter::GetHealth() const
+{
+	return AttributeSet->GetHealth();
+}
+
+float ATurnBaseCharacter::GetMaxHealth() const
+{
+	return AttributeSet->GetMaxHealth();
+}
+
+int32 ATurnBaseCharacter::GetCharacterLevel() const
+{
+	return 1;
 }
 
 bool ATurnBaseCharacter::MoveToTargetLocation(bool bForce) {
@@ -66,4 +94,33 @@ void ATurnBaseCharacter::OnGameStateChangeDelegate(ETurnBasePlayState NewState)
 {
 	if (CurrentGameState == NewState) return;
 	CurrentGameState = NewState;
+}
+
+void ATurnBaseCharacter::AddStartupGameplayAbilities()
+{
+	check(AbilitySystemComponent);
+
+	if (!bAbilitiesInitialized)
+	{
+		// Grant abilities, but only on the server	
+		for (TSubclassOf<UGameplayAbility>& StartupAbility : GameplayAbilities)
+		{
+			AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, GetCharacterLevel(), INDEX_NONE, this));
+		}
+
+		// Now apply passives
+		for (TSubclassOf<UGameplayEffect>& GameplayEffect : PassiveGameplayEffects)
+		{
+			FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+
+			FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(GameplayEffect, GetCharacterLevel(), EffectContext);
+			if (NewHandle.IsValid())
+			{
+				FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToTarget(*NewHandle.Data.Get(), AbilitySystemComponent);
+			}
+		}
+
+		bAbilitiesInitialized = true;
+	}
 }

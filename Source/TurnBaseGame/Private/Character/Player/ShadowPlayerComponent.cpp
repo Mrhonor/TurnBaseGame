@@ -35,7 +35,7 @@ void UShadowPlayerComponent::SetShadowActive(bool NewState)
 	
 }
 
-void UShadowPlayerComponent::AddOrderInput(FOrderInput & InputOrder) const
+void UShadowPlayerComponent::AddOrderInput(FOrderInput InputOrder) const
 {
 	UOrderProcessComponent* CurrentOrderComponent = GetChildActor()->FindComponentByClass<UOrderProcessComponent>();
 	if (bShadowActive && CurrentOrderComponent) {
@@ -54,10 +54,10 @@ void UShadowPlayerComponent::ShadowBackspace()
 		FOrderInput LatestOrder = GetShadowActor()->GetOrderProcessComponent()->GetLatestOrder();
 		switch (LatestOrder.OrderType)
 		{
-		case EMoveOrder:
+		case EOrderType::EMoveOrder:
 			GetShadowActor()->SetActorLocation(LatestOrder.CurrentLocation);
 			break;
-		case EUnknowOrder:
+		case EOrderType::EUnknowOrder:
 			DestroyChildActor();
 			break;
 		default:

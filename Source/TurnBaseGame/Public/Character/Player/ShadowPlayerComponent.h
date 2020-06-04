@@ -43,7 +43,7 @@ public:
 	 * @return Comment
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ShadowCharacter")
-		void AddOrderInput(FOrderInput & InputOrder) const;
+		void AddOrderInput(FOrderInput InputOrder) const;
 
 	/**
 	 * Get the Shadow Actor

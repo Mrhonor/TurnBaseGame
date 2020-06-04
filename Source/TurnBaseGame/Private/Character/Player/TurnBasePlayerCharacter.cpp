@@ -10,7 +10,7 @@
 #include "GridManagerComponent.h"
 #include "ShadowPlayerComponent.h"
 #include "GameFramework/GameModeBase.h"
-
+#include "TurnBasePlayerController.h"
 
 
 ATurnBasePlayerCharacter::ATurnBasePlayerCharacter() {
@@ -43,16 +43,40 @@ ATurnBasePlayerCharacter::ATurnBasePlayerCharacter() {
 	TopDownCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	ShadowPlayerComponent = CreateDefaultSubobject<UShadowPlayerComponent>(TEXT("ShadowCharacter"));
-	ShadowPlayerComponent->SetupAttachment(GetMesh());
+	if (USkeletalMeshComponent* TestMesh = Cast<USkeletalMeshComponent>(GetMesh())){
+		ShadowPlayerComponent->SetupAttachment(TestMesh);
+	}
 
 	bControlled = false;
 
 	PlayerInputMessage.Empty();
-	PrimaryActorTick.bCanEverTick = true;
 
 	bNeedToMove = false;
+
+	PrimaryActorTick.bCanEverTick = true;
 }
 
+void ATurnBasePlayerCharacter::PossessedBy(AController* controller)
+{
+	Super::PossessedBy(controller);
+
+	if (ATurnBasePlayerController* TestController = Cast<ATurnBasePlayerController>(controller)) {
+		TestController->OnKeyPressed.AddDynamic(this, &ATurnBasePlayerCharacter::KeyPressed);
+		TestController->OnKeyReleased.AddDynamic(this, &ATurnBasePlayerCharacter::KeyReleased);
+	}
+}
+
+
+
+void ATurnBasePlayerCharacter::UnPossessed()
+{
+	if (ATurnBasePlayerController* TestController = Cast<ATurnBasePlayerController>(GetController())) {
+		TestController->OnKeyPressed.RemoveDynamic(this, &ATurnBasePlayerCharacter::KeyPressed);
+		TestController->OnKeyReleased.RemoveDynamic(this, &ATurnBasePlayerCharacter::KeyReleased);
+	}
+
+	Super::UnPossessed();
+}
 
 void ATurnBasePlayerCharacter::BeginPlay() {
 	Super::BeginPlay();
@@ -60,7 +84,6 @@ void ATurnBasePlayerCharacter::BeginPlay() {
 	GridTargetLocation = GetActorLocation();
 	CameraTransform = CameraBoom->GetRelativeTransform();
 
-	CurrentGridManager = GetWorld()->GetAuthGameMode()->FindComponentByClass<UGridManagerComponent>();
 }
 
 void ATurnBasePlayerCharacter::Tick(float DeltaTime) {
@@ -70,12 +93,11 @@ void ATurnBasePlayerCharacter::Tick(float DeltaTime) {
 	if (bControlled) {
 		MouseWheelRoll();
 
-		if (PlayerInputMessage.bMouseRight == true) {
-			ConsumeMouseRightInput();
-		}
+		//if (PlayerInputMessage.bMouseRight == true) {
+		//	ConsumeMouseRightInput();
+		//}
 
 	}
-
 
 	// Execute Shadow Character mission
 	if (bNeedToMove) {
@@ -84,8 +106,6 @@ void ATurnBasePlayerCharacter::Tick(float DeltaTime) {
 			OrderProcessComponent->SetOrderExecuting(false);
 		}
 	}
-
-
 }
 
 void ATurnBasePlayerCharacter::MouseWheelRoll() {
@@ -99,21 +119,21 @@ void ATurnBasePlayerCharacter::ConsumeMouseRightInput() {
 	FVector MouseXY = PlayerInputMessage.MouseLocation - PlayerInputMessage.MouseDirection * (PlayerInputMessage.MouseLocation.Z / PlayerInputMessage.MouseDirection.Z);
 	switch (CurrentGameState)
 	{
-	case EBattlePrepare:
+	case ETurnBasePlayState::EBattlePrepare:
 		if (!OrderProcessComponent->CanAddOrderInput()) return;
 		
 		if (ShadowPlayerComponent != nullptr) {
 			if (!ShadowPlayerComponent->GetShadowActive()) {
 				ShadowPlayerComponent->SetShadowActive(true);
 			}
-
+			
 			if (ATurnBasePlayerCharacter* Shadow = ShadowPlayerComponent->GetShadowActor()) {
 				if (Shadow->GetOrderExecuting() == false) {
 					FOrderInput Order(EOrderType::EMoveOrder, MouseXY, Shadow->GetActorLocation());
-					if (CurrentGridManager->OrderValidity(Shadow, Order)) {
+					if (OrderProcessComponent->GetCurrentGridManager()->OrderValidity(Shadow, Order)) {
 						OrderProcessComponent->AddOrderInput(Order);
 						Shadow->GetOrderProcessComponent()->AddOrderInput(Order);
-						Shadow->GetOrderProcessComponent()->ExecutrFirstOrder();
+						Shadow->GetOrderProcessComponent()->ExecuteFirstOrder();
 					}
 				}
 			}
@@ -124,9 +144,20 @@ void ATurnBasePlayerCharacter::ConsumeMouseRightInput() {
 	}
 }
 
+
+void ATurnBasePlayerCharacter::KeyPressed_Implementation(FKey key)
+{
+
+}
+
+void ATurnBasePlayerCharacter::KeyReleased_Implementation(FKey key)
+{
+
+}
+
 void ATurnBasePlayerCharacter::OrderBackspace(){
 	if (CurrentGameState == ETurnBasePlayState::EBattlePrepare) {
-		CurrentGridManager->ClearLatestOrder(this);
+		OrderProcessComponent->GetCurrentGridManager()->ClearLatestOrder(this);
 	}
 }
 

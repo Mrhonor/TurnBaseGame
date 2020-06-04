@@ -22,6 +22,8 @@ public class TurnBaseGame : ModuleRules
 
         PublicIncludePaths.AddRange(
         new string[] {
+        "TurnBaseGame/Public/",
+        "TurnBaseGame/Public/Ability",
         "TurnBaseGame/Public/Character",
         "TurnBaseGame/Public/Character/Player",
         "TurnBaseGame/Public/Scene"
@@ -30,6 +32,8 @@ public class TurnBaseGame : ModuleRules
 
         PrivateIncludePaths.AddRange(
         new string[] {
+        "TurnBaseGame/Public/",
+        "TurnBaseGame/Public/Ability",
         "TurnBaseGame/Private/Character",
         "TurnBaseGame/Private/Character/Player",
         "TurnBaseGame/Private/Scene"

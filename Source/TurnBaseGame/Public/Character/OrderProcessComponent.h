@@ -7,8 +7,9 @@
 #include "OrderInput.h"
 #include "OrderProcessComponent.generated.h"
 
+class UGridManagerComponent;
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class TURNBASEGAME_API UOrderProcessComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -17,6 +18,7 @@ public:
 
 
 private:
+	UPROPERTY(BlueprintReadWrite, Category = "Input", meta = (AllowPrivateAccess = "true"))
 	TArray<FOrderInput> OrderList;
 
 	/**
@@ -32,19 +34,19 @@ private:
 		bool bOrderExecuting;
 
 protected:
+	UPROPERTY(BlueprintReadOnly, Category = "GameMode")
+	UGridManagerComponent* CurrentGridManager;
+
 
 public:	
 	// Sets default values for this component's properties
 	UOrderProcessComponent();
 
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 	/**
 	 * Add Order
 	 */
-	UFUNCTION(BlueprintCallable, Category = "MyProject")
-	void AddOrderInput(FOrderInput &InputOrder);
+	UFUNCTION(BlueprintCallable, Category = "Order")
+	void AddOrderInput(FOrderInput InputOrder);
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		FORCEINLINE int32 GetMaxOrderNum() const { return MaxOrderNum; }
@@ -58,8 +60,9 @@ public:
 	/**
 	 * Execute the order in OrderList[0]
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Order")
-		virtual void ExecutrFirstOrder();
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Order")
+	void ExecuteFirstOrder();
+	virtual void ExecuteFirstOrder_Implementation();
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		void ClearLatestOrder();
@@ -88,4 +91,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		bool CanAddOrderInput() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		FORCEINLINE UGridManagerComponent* GetCurrentGridManager() const { return CurrentGridManager; }
+
+protected:
+	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Order")
+		void OnUpdateAttackState();
+
+
 };

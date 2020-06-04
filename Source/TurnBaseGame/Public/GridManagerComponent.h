@@ -11,7 +11,7 @@ class AGridScene;
 class ATurnBaseCharacter;
 class ATurnBaseGameModeBase;
 
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
+UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable )
 class TURNBASEGAME_API UGridManagerComponent : public UActorComponent
 {
 	GENERATED_BODY()

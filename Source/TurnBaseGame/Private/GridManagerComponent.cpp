@@ -67,7 +67,7 @@ void UGridManagerComponent::ShowSelectSection(const FVector &ShowLocation) {
 }
 
 bool UGridManagerComponent::OrderValidity(ATurnBaseCharacter* Character, const FOrderInput & Order) {
-	if (CurrentGameState == EBattlePrepare) {
+	if (CurrentGameState == ETurnBasePlayState::EBattlePrepare) {
 		if (SpawnedGrid != nullptr) {
 			switch (Order.OrderType)
 			{
