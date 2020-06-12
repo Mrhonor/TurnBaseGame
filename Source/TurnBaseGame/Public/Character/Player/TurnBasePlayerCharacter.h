@@ -79,9 +79,6 @@ public:
 
 
 	void DestroyShadowCharacter();
-	
-	// move the character to target location within the grid limitation
-	virtual void AddGridMovementInput(const FVector& TargetLocation) override;
 
 	// move the camera base on mouse cursor
 	virtual void CameraMove(float XValue, float YValue) override;
@@ -114,5 +111,7 @@ protected:
 	virtual void KeyReleased_Implementation(FKey key);
 
 	virtual void OrderBackspace() override;
+
+	virtual void OnGameStateChangeDelegate(ETurnBasePlayState NewState) override;
 
 };

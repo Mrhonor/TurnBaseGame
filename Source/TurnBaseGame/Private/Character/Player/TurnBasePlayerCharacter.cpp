@@ -6,10 +6,10 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 #include "Camera/CameraComponent.h"
-#include "OrderInput.h"
 #include "GridManagerComponent.h"
 #include "ShadowPlayerComponent.h"
 #include "GameFramework/GameModeBase.h"
+#include "TurnBaseBlueprintFunctionLibrary.h"
 #include "TurnBasePlayerController.h"
 
 
@@ -98,14 +98,6 @@ void ATurnBasePlayerCharacter::Tick(float DeltaTime) {
 		//}
 
 	}
-
-	// Execute Shadow Character mission
-	if (bNeedToMove) {
-		if (MoveToTargetLocation(true)) {
-			bNeedToMove = false;
-			OrderProcessComponent->SetOrderExecuting(false);
-		}
-	}
 }
 
 void ATurnBasePlayerCharacter::MouseWheelRoll() {
@@ -116,7 +108,7 @@ void ATurnBasePlayerCharacter::MouseWheelRoll() {
 
 void ATurnBasePlayerCharacter::ConsumeMouseRightInput() {
 	PlayerInputMessage.bMouseRight = false;
-	FVector MouseXY = PlayerInputMessage.MouseLocation - PlayerInputMessage.MouseDirection * (PlayerInputMessage.MouseLocation.Z / PlayerInputMessage.MouseDirection.Z);
+	FVector MouseXY = UTurnBaseBlueprintFunctionLibrary::CalcMouseLocation(PlayerInputMessage.MouseLocation, PlayerInputMessage.MouseDirection);
 	switch (CurrentGameState)
 	{
 	case ETurnBasePlayState::EBattlePrepare:
@@ -161,6 +153,20 @@ void ATurnBasePlayerCharacter::OrderBackspace(){
 	}
 }
 
+void ATurnBasePlayerCharacter::OnGameStateChangeDelegate(ETurnBasePlayState NewState)
+{
+	Super::OnGameStateChangeDelegate(NewState);
+	switch (NewState)
+	{
+	case ETurnBasePlayState::EBattlePrepare:
+		OnCollisionChange(false);
+		break;
+	default:
+		OnCollisionChange(true);
+		break;
+	}
+}
+
 void ATurnBasePlayerCharacter::ExitControl() {
 	PlayerInputMessage.Empty();
 	OnControl(false);
@@ -176,11 +182,6 @@ void ATurnBasePlayerCharacter::DestroyShadowCharacter(){
 	}
 }
 
-void ATurnBasePlayerCharacter::AddGridMovementInput(const FVector & TargetLocation){
-	PreGridLocation = GetActorLocation();
-	GridTargetLocation = TargetLocation;
-	bNeedToMove = true;
-}
 
 void ATurnBasePlayerCharacter::CameraMove(float XValue, float YValue){
 	const float Scale = 20.f;

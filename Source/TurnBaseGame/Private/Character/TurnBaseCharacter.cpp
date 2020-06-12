@@ -3,7 +3,7 @@
 
 #include "TurnBaseCharacter.h"
 #include "TurnBaseGameModeBase.h"
-
+#include "AddGridMovementInput.h"
 
 // Sets default values
 ATurnBaseCharacter::ATurnBaseCharacter()
@@ -17,6 +17,7 @@ ATurnBaseCharacter::ATurnBaseCharacter()
 
 	CurrentGameState = ETurnBasePlayState::EUnknow;
 	bAbilitiesInitialized = false;
+	CurrentPlayerState = EPlayerState::EIdle;
 }
 
 // Called when the game starts or when spawned
@@ -26,7 +27,9 @@ void ATurnBaseCharacter::BeginPlay()
 	
 	if (ATurnBaseGameModeBase* TestGameMode = Cast<ATurnBaseGameModeBase>(GetWorld()->GetAuthGameMode())) {
 		TestGameMode->OnGameStateChange.AddDynamic(this, &ATurnBaseCharacter::OnGameStateChangeDelegate);
+		CurrentGameState = ETurnBasePlayState::EPlaying;
 	}
+
 }
 
 void ATurnBaseCharacter::PossessedBy(AController* controller)
@@ -44,6 +47,13 @@ void ATurnBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Execute Shadow Character mission
+	if (bNeedToMove) {
+		if (MoveToTargetLocation(true)) {
+			bNeedToMove = false;
+			CompletedHandle.ExecuteIfBound();
+		}
+	}
 }
 
 // Called to bind functionality to input
@@ -54,6 +64,21 @@ void ATurnBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 }
 
 void ATurnBaseCharacter::CameraMove(float XValue, float YValue){
+}
+
+void ATurnBaseCharacter::AddGridMovementInput(const FVector& TargetLocation)
+{
+	PreGridLocation = GetActorLocation();
+	GridTargetLocation = TargetLocation;
+	bNeedToMove = true;
+}
+
+UAddGridMovementInputAsync* ATurnBaseCharacter::AddGridMovementInputFunc(const FVector& TargetLocation)
+{
+	UAddGridMovementInputAsync* BlueprintNode = NewObject<UAddGridMovementInputAsync>();
+
+
+	return BlueprintNode;
 }
 
 float ATurnBaseCharacter::GetHealth() const
@@ -69,6 +94,11 @@ float ATurnBaseCharacter::GetMaxHealth() const
 int32 ATurnBaseCharacter::GetCharacterLevel() const
 {
 	return 1;
+}
+
+void ATurnBaseCharacter::SetPlayerState(EPlayerState NewState)
+{
+	CurrentPlayerState = NewState;
 }
 
 bool ATurnBaseCharacter::MoveToTargetLocation(bool bForce) {

@@ -42,7 +42,7 @@ public:
 		void ShowSelectSection(const FVector &ShowLocation);
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
-		bool OrderValidity(ATurnBaseCharacter* Character, const FOrderInput &Order);
+		bool OrderValidity(ATurnBaseCharacter* Character, UPARAM(ref) FOrderInput & Order);
 
 	/** Start to expose AGridScene interface **/
 	UFUNCTION(BlueprintCallable, Category = "Grid")
@@ -62,6 +62,23 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		void ClearLatestOrder(ATurnBaseCharacter* TheCharacter);
+
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		void GetGridPosition(FVector Location, int32 &Row, int32 &Col);
+
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		bool PathSearch(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol);
+
+	/**
+	 * For the Given Index return the location.
+	 * @param  Row			   input row
+	 * @param  Col			   input col
+	 * @param  IsCenter		   if value is true return the Center Location, Value is false return Left-down Location Value
+	 * return                   The location that the index point to. No matter what index was given.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Grid")
+		FVector GetGridLocation(int32 Row, int32 Col, bool IsCenter = true);
+
 	/** End to expose AGridScene interface **/
 
 protected:

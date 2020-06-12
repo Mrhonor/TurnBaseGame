@@ -51,11 +51,17 @@ ATurnBasePlayerCharacter* UShadowPlayerComponent::GetShadowActor() const
 void UShadowPlayerComponent::ShadowBackspace()
 {
 	if (bShadowActive) {
-		FOrderInput LatestOrder = GetShadowActor()->GetOrderProcessComponent()->GetLatestOrder();
+		UOrderProcessComponent* CurrentOrderComponent = GetOwner()->FindComponentByClass<UOrderProcessComponent>();
+		if (CurrentOrderComponent == nullptr)
+		{
+			return;
+		}
+
+		FOrderInput LatestOrder = CurrentOrderComponent->GetLatestOrder();
 		switch (LatestOrder.OrderType)
 		{
 		case EOrderType::EMoveOrder:
-			GetShadowActor()->SetActorLocation(LatestOrder.CurrentLocation);
+			GetShadowActor()->SetActorLocation(LatestOrder.CurrentLocation + FVector(0.f, 0.f, 88.f));
 			break;
 		case EOrderType::EUnknowOrder:
 			DestroyChildActor();
@@ -63,5 +69,6 @@ void UShadowPlayerComponent::ShadowBackspace()
 		default:
 			break;
 		}
+		CurrentOrderComponent->ClearLatestOrder();
 	}
 }

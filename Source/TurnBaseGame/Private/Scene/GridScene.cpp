@@ -6,6 +6,7 @@
 #include "Kismet/KismetMaterialLibrary.h"
 #include "GridPropertyInterface.h"
 #include "TurnBaseCharacter.h"
+#include "Algo/Reverse.h"
 #include "TurnBasePlayerCharacter.h"
 #include "Engine/World.h"
 #include "TurnBaseGameModeBase.h"
@@ -60,6 +61,41 @@ bool operator==(const FStorageCharacter &A, const FStorageCharacter &B) {
 		A.TheCharacter == B.TheCharacter &&
 		A.IsPlayerCharacter == B.IsPlayerCharacter 
 		);
+}
+
+FPathSearchNode::FPathSearchNode()
+	: IsActive(true)
+	, Row(0)
+	, Col(0)
+	, GCost(0)
+	, HCost(10)
+	, TotalCost(10)
+	, ParentNode(nullptr)
+{
+
+}
+
+FPathSearchNode::FPathSearchNode(int32 row, int32 col)
+	: IsActive(true)
+	, Row(row)
+	, Col(col)
+	, GCost(0)
+	, HCost(10)
+	, TotalCost(10)
+	, ParentNode(nullptr)
+{
+}
+
+
+FPathSearchNode::FPathSearchNode(int32 row, int32 col, int32 gCost, int32 hCost, FPathSearchNode* parentNode)
+	: IsActive(true)
+	, Row(row)
+	, Col(col)
+	, GCost(gCost)
+	, HCost(hCost)
+	, TotalCost(gCost + hCost)
+	, ParentNode(parentNode)
+{
 }
 
 // Sets default values
@@ -158,7 +194,7 @@ bool AGridScene::IsInRange(int32 Row, int32 Col) {
 	return (Row >= 0 && Row < TileRow) && (Col >= 0 && Col < TileRow);
 }
 
-bool AGridScene::GetGridPosition(const FVector& Location, int32 &Row, int32 &Col) {
+bool AGridScene::GetGridPosition(FVector Location, int32 &Row, int32 &Col) {
 	FVector RelativeLocation = Location - GetActorLocation();
 	Col = int(RelativeLocation.Y / TileSize);
 	Row = int(RelativeLocation.X / TileSize);
@@ -283,6 +319,7 @@ bool AGridScene::IsBlockingObject(int32 Row, int32 Col) {
 }
 
 FStorageObjectList* AGridScene::GetGridObject(int32 Row, int32 Col) {
+	if (!IsInRange(Row, Col)) return nullptr;
 	if (Row <= Col) {
 		FStorageObjectList* SearchPtr = ObjectColList[Col];
 		if (SearchPtr == nullptr) return nullptr;
@@ -640,15 +677,254 @@ void AGridScene::DeleteTheColList(FStorageObjectList * DeletePtr) {
 
 bool AGridScene::PathSearch(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol) {
 	if (CurrentRow == TargetRow && CurrentCol == TargetCol) return false;
-	Path.Init(FVector2D::ZeroVector, abs(TargetRow - CurrentRow) + abs(TargetCol - CurrentCol));
-	int32 index = 0;
+	TArray<FPathSearchNode*> OpenList;
+	if (IsInRange(CurrentRow, CurrentCol)) {
+		// HCost function
+		auto HCostFunc = [TargetRow, TargetCol](int32 Row, int32 Col) {
+			return int32((abs(TargetCol - Col) + abs(TargetRow - Row)) * 10);
+		};
+		// Search the same node in the list
 
-	return Searching(Path, CurrentRow, CurrentCol, TargetRow, TargetCol, index);
+		auto SGN = [](int32 a) {
+			if (a > 0) return 1;
+			else if (a < 0) return -1;
+			else return 0;
+		};
+
+		auto ActiveCalc = [&OpenList]() {
+			int num = 0;
+			for (auto &i : OpenList) {
+				if (i->IsActive == true)
+					num++;
+			}
+			return num;
+		};
+
+		OpenList.Add(new FPathSearchNode(CurrentRow, CurrentCol, 0, HCostFunc(CurrentRow, CurrentCol), nullptr));
+		while (ActiveCalc() > 0)
+		{
+			int index = 0;
+			int32 MinCost = OpenList[0]->TotalCost + 10000;
+			for (int i = 0; i < OpenList.Num(); i++) {
+				if (MinCost > OpenList[i]->TotalCost && OpenList[i]->IsActive) {
+					MinCost = OpenList[i]->TotalCost;
+					index = i;
+				}
+				if (OpenList[i]->HCost == 0)
+				{
+					CalcPath(OpenList, i, Path);
+					return true;
+				}
+			}
+
+
+			FPathSearchNode* ActiveNode = OpenList[index];
+			FPathSearchNode* NewNode = new FPathSearchNode();
+			if (ActiveNode->ParentNode == nullptr) {
+				for (int x = -1; x <= 1; x++) {
+					for (int y = -1; y <= 1; y++) {
+						if (x == 0 && y == 0) continue;
+						//如果该节点是父节点就往8个方向搜
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+					}
+				}
+			}
+			else{
+				//如果是子节点就往父节点相反的三个方向搜索
+				int32 x = SGN(ActiveNode->Col - ActiveNode->ParentNode->Col);
+				int32 y = SGN(ActiveNode->Row - ActiveNode->ParentNode->Row);
+				if (x != 0 || y != 0)
+				{
+					//完全相反反向搜索
+					if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, y), NewNode)) {
+						OpenList.Add(NewNode);
+						NewNode = new FPathSearchNode();
+					}
+					//计算逆时针和顺时针旋转45°的方向，进行搜索
+					if (x == 0)
+					{
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(1, y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(-1, y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+					}
+					else if (y == 0) {
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, 1), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, -1), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+					}
+					else
+					{
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, 0), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(0, y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+					}
+					//如果斜着走，搜索多两个垂直方向
+					if (abs(x + y) != 1) {
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(x, -y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+						if (Searching(ActiveNode, TargetRow, TargetCol, FVector2D(-x, y), NewNode)) {
+							OpenList.Add(NewNode);
+							NewNode = new FPathSearchNode();
+						}
+					}
+				}
+			}
+			
+			OpenList[index]->IsActive = false;
+			delete NewNode;
+		}
+	}
+
+	return false;
 }
 
-bool AGridScene::Searching(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol, int32 index) {
-	// wait for inplementation
+bool AGridScene::Searching(FPathSearchNode * CurrentNode, int32 TargetRow, int32 TargetCol, FVector2D Direction, FPathSearchNode * ReturnNode) {
+	if (Direction.X == 0 && Direction.Y == 0) {
+		return false;
+	}
+
+	// wait for implementation
+	int32 NewCol = CurrentNode->Col + Direction.X;
+	int32 NewRow = CurrentNode->Row + Direction.Y;
+
+	// HCost function
+	auto HCostFunc = [TargetRow, TargetCol](int32 Row, int32 Col) {
+		return int32((abs(TargetCol - Col) + abs(TargetRow - Row)) * 10);
+	};
+
+	auto GCostFunc = [](const FPathSearchNode * CurrentNode, const FPathSearchNode * ReturnNode) {
+		if (ReturnNode->Row == CurrentNode->Row || ReturnNode->Col == CurrentNode->Col)
+		{
+			return CurrentNode->GCost + 10 * (abs(ReturnNode->Row - CurrentNode->Row) + abs(ReturnNode->Row - CurrentNode->Row));
+		} 
+		else
+		{
+			return CurrentNode->GCost + 14 * abs(ReturnNode->Row - CurrentNode->Row);
+		}
+		
+	};
+
+	auto ReturnNodeInit = [&ReturnNode, &CurrentNode, &HCostFunc, &GCostFunc](int32 Row, int32 Col) {
+		ReturnNode->Row = Row;
+		ReturnNode->Col = Col;
+		ReturnNode->GCost = GCostFunc(CurrentNode, ReturnNode);
+		ReturnNode->HCost = HCostFunc(Row, Col);
+		ReturnNode->TotalCost = ReturnNode->GCost + ReturnNode->HCost;
+		ReturnNode->ParentNode = CurrentNode;
+	};
+
+	while (IsInRange(NewRow, NewCol) && !IsBlockingObject(NewRow, NewCol))
+	{
+		if (NewRow == TargetRow && NewCol == TargetCol) {
+			ReturnNodeInit(TargetRow, TargetCol);
+			return true;
+		}
+
+		if (abs(Direction.X + Direction.Y) == 1) {
+
+				//分别判断上下两个方向是否有障碍物
+				if (IsBlockingObject(NewRow + Direction.X, NewCol + Direction.Y)) {
+					//判断斜上下方向是否可以通行来确定是不是强迫邻点
+					if (!IsBlockingObject(NewRow + Direction.X + Direction.Y, NewCol + Direction.Y + Direction.X)) {
+						ReturnNodeInit(NewRow, NewCol);
+						return true;
+					}
+				}
+				if (IsBlockingObject(NewRow - Direction.X, NewCol - Direction.Y)) {
+					if (!IsBlockingObject(NewRow - Direction.X + Direction.Y, NewCol - Direction.Y + Direction.X)) {
+						ReturnNodeInit(NewRow, NewCol);
+						return true;
+					}
+				}
+
+
+		}
+		else {
+			if (IsBlockingObject(NewRow - Direction.Y, NewCol)) {
+				if (!IsBlockingObject(NewRow - Direction.Y, NewCol + Direction.X)) {
+					ReturnNodeInit(NewRow, NewCol);
+					return true;
+				}
+			}
+			if (IsBlockingObject(NewRow, NewCol - Direction.X)) {
+				if (!IsBlockingObject(NewRow + Direction.Y, NewCol - Direction.X)) {
+					ReturnNodeInit(NewRow, NewCol);
+					return true;
+				}
+			}
+
+			FPathSearchNode CrossSearchNode(NewRow, NewCol);
+			if (Searching(&CrossSearchNode, TargetRow, TargetCol, FVector2D(Direction.X, 0), ReturnNode)) {
+				ReturnNodeInit(NewRow, NewCol);
+				return true;
+			}
+			if (Searching(&CrossSearchNode, TargetRow, TargetCol, FVector2D(0, Direction.Y), ReturnNode)) {
+				ReturnNodeInit(NewRow, NewCol);
+				return true;
+			}
+		}
+
+		NewRow += Direction.Y;
+		NewCol += Direction.X;
+	}
+
 	return false;
+}
+
+void AGridScene::CalcPath(TArray<FPathSearchNode*> OpenList, int32 Index, TArray<FVector2D> &Path)
+{
+	auto SGN = [](int32 a) {
+		if (a > 0) return 1;
+		else if (a < 0) return -1;
+		else return 0;
+	};
+	Path.Empty();
+	FPathSearchNode Terminus = *OpenList[Index];
+	FPathSearchNode Current = Terminus;
+	FPathSearchNode Parent = *Terminus.ParentNode;
+	int32 Row = Current.Row;
+	int32 Col = Current.Col;
+	FVector2D Direction = FVector2D(SGN(Current.Col - Parent.Col), SGN(Current.Row - Parent.Row));
+	while (Current.ParentNode != nullptr)
+	{
+		Path.Add(FVector2D(Col, Row));
+		UE_LOG(LogTemp, Warning, TEXT("Row: %d, Col: %d"), Row, Col);
+		Row -= Direction.Y;
+		Col -= Direction.X;
+
+		if (Row == Parent.Row && Col == Parent.Col) {
+			Current = Parent;
+			if (Parent.ParentNode != nullptr) {
+				Parent = *Parent.ParentNode;
+			}
+			Direction = FVector2D(SGN(Current.Col - Parent.Col), SGN(Current.Row - Parent.Row));
+		}
+	}
+	Algo::Reverse(Path);
+
+	for (auto &i : OpenList) {
+		delete i;
+	}
 }
 
 int32 AGridScene::SearchCharacter(ATurnBaseCharacter * SearchTarget)

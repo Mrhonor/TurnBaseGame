@@ -6,6 +6,7 @@
 #include "TurnBaseCharacter.h"
 #include "Engine/World.h"
 #include "GameFramework/GameModeBase.h"
+#include "AbilitySystemComponent.h"
 #include "Components/ActorComponent.h"
 
 // Sets default values for this component's properties
@@ -15,7 +16,7 @@ UOrderProcessComponent::UOrderProcessComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
-	MaxOrderNum = 3;
+	MaxOrderNum = 6;
 	bOrderExecuting = false;
 	bEnableBattleInput = false;
 	// ...
@@ -36,27 +37,22 @@ void UOrderProcessComponent::SetMaxOrderNum(int32 NewNum)
 	}
 }
 
-void UOrderProcessComponent::ExecuteFirstOrder_Implementation()
+void UOrderProcessComponent::ExecuteFirstOrder()
 {
 	if (OrderList.Num() > 0 && !bOrderExecuting) {
-		switch (OrderList[0].OrderType) {
-		case EOrderType::EMoveOrder:
-			if (ATurnBaseCharacter* TestCharacter = Cast<ATurnBaseCharacter>(GetOwner())) {
-				TestCharacter->AddGridMovementInput(OrderList[0].TargetLocation);
-			}
-			bOrderExecuting = true;
-			OrderList.RemoveAt(0);
-			break;
-		default:
-			break;
-		}
+		bOrderExecuting = true;
+		CurrentExecuteOrder = OrderList[0];
+		IAbilitySystemInterface* AbilityInterface = Cast<IAbilitySystemInterface>(GetOwner());
+		AbilityInterface->GetAbilitySystemComponent()->TryActivateAbilitiesByTag(OrderList[0].OrderTagType);
+
+		OrderList.RemoveAt(0);
 	}
 }
 
 void UOrderProcessComponent::ClearLatestOrder()
 {
 	if (OrderList.Num() > 0) {
-
+		OrderList.RemoveAt(OrderList.Num() - 1);
 	}
 }
 

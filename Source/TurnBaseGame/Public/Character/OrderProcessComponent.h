@@ -16,6 +16,9 @@ class TURNBASEGAME_API UOrderProcessComponent : public UActorComponent
 
 public:	
 
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Order", meta = (BlueprintProtected = "true"))
+		FOrderInput CurrentExecuteOrder;
 
 private:
 	UPROPERTY(BlueprintReadWrite, Category = "Input", meta = (AllowPrivateAccess = "true"))
@@ -60,9 +63,8 @@ public:
 	/**
 	 * Execute the order in OrderList[0]
 	 */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Order")
+	UFUNCTION(BlueprintCallable, Category = "Order")
 	void ExecuteFirstOrder();
-	virtual void ExecuteFirstOrder_Implementation();
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		void ClearLatestOrder();
@@ -94,6 +96,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		FORCEINLINE UGridManagerComponent* GetCurrentGridManager() const { return CurrentGridManager; }
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		FORCEINLINE FOrderInput GetCurrentExecuteOrder() const { return CurrentExecuteOrder; }
+
+	UFUNCTION(BlueprintCallable, Category = "Order")
+		void SetCurrentExecuteOrder(FOrderInput NewOrder) { CurrentExecuteOrder = NewOrder; }
 
 protected:
 	virtual void BeginPlay() override;

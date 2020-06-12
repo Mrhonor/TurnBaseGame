@@ -30,6 +30,7 @@ void ATurnBasePlayerController::BeginPlay() {
 	if (CurrentGameMode) {
 		CurrentGameMode->OnGameStateChange.AddDynamic(this, &ATurnBasePlayerController::OnGameStateChangeDelegate);
 		CurrentGridManager = CurrentGameMode->FindComponentByClass<UGridManagerComponent>();
+		CurrentGameState = ETurnBasePlayState::EPlaying;
 	}
 }
 

@@ -66,14 +66,15 @@ void UGridManagerComponent::ShowSelectSection(const FVector &ShowLocation) {
 	}
 }
 
-bool UGridManagerComponent::OrderValidity(ATurnBaseCharacter* Character, const FOrderInput & Order) {
+bool UGridManagerComponent::OrderValidity(ATurnBaseCharacter* Character, FOrderInput & Order) {
 	if (CurrentGameState == ETurnBasePlayState::EBattlePrepare) {
 		if (SpawnedGrid != nullptr) {
 			switch (Order.OrderType)
 			{
 			case EOrderType::EMoveOrder:
 				if (SpawnedGrid != nullptr) {
-					return SpawnedGrid->CanCharacterMoveTo(Character->GetActorLocation(), Order.TargetLocation);
+					Order.TargetLocation = SpawnedGrid->GetGridCenter(Order.TargetLocation);
+					return SpawnedGrid->CanCharacterMoveTo(Order.CurrentLocation, Order.TargetLocation);
 				}
 				return false;
 			default:
@@ -137,4 +138,28 @@ void UGridManagerComponent::ClearLatestOrder(ATurnBaseCharacter* TheCharacter)
 	if (SpawnedGrid) {
 		SpawnedGrid->ClearLatestOrder(TheCharacter);
 	}
+}
+
+void UGridManagerComponent::GetGridPosition(FVector Location, int32 &Row, int32 &Col)
+{
+	if (SpawnedGrid) {
+		SpawnedGrid->GetGridPosition(Location, Row, Col);
+	}
+}
+
+bool UGridManagerComponent::PathSearch(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol)
+{
+	if (SpawnedGrid) {
+		return SpawnedGrid->PathSearch(Path, CurrentRow, CurrentCol, TargetRow, TargetCol);
+	}
+	return false;
+}
+
+FVector UGridManagerComponent::GetGridLocation(int32 Row, int32 Col, bool IsCenter /*= true*/)
+{
+	if (SpawnedGrid)
+	{
+		return SpawnedGrid->GetGridLocation(Row, Col, IsCenter);
+	}
+	return FVector::ZeroVector;
 }

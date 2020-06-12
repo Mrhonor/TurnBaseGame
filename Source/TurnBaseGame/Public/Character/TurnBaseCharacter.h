@@ -12,6 +12,10 @@
 #include "BaseAttributeSet.h"
 #include "TurnBaseCharacter.generated.h"
 
+DECLARE_DELEGATE(FCompleteDelegate);
+DECLARE_DELEGATE(FInterruptedDelegate);
+
+class UAddGridMovementInputAsync;
 
 UCLASS()
 class TURNBASEGAME_API ATurnBaseCharacter : public ACharacter, public IGridPropertyInterface, public IAbilitySystemInterface
@@ -24,6 +28,10 @@ public:
 	/** Passive gameplay effects applied on creation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Abilities)
 		TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
+
+	FCompleteDelegate CompletedHandle;
+
+	FInterruptedDelegate InterruptedHandle;
 
 protected:
 	/** List of attributes modified by the ability system */
@@ -50,6 +58,11 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "GameMode")
 	ETurnBasePlayState CurrentGameState;
 
+	UPROPERTY(BlueprintReadWrite, Category = "PlayerState")
+	EPlayerState CurrentPlayerState;
+		
+	UAddGridMovementInputAsync* CurrentGridMovementFunction;
+
 private:
 	bool bAbilitiesInitialized;
 
@@ -72,8 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Control")
 		virtual void CameraMove(float XValue, float YValue);
 
-	UFUNCTION(BlueprintCallable, Category = "Input")
-		virtual void AddGridMovementInput(const FVector& TargetLocation) { GridTargetLocation = TargetLocation; }
+	virtual void AddGridMovementInput(const FVector& TargetLocation);
+
+	UFUNCTION(BlueprintCallable, Category = "Grid", meta = (BlueprintInternalUseOnly = "true"))
+		static UAddGridMovementInputAsync* AddGridMovementInputFunc(const FVector& TargetLocation);
 
 	UFUNCTION(BlueprintCallable, Category = "Order")
 		FORCEINLINE UOrderProcessComponent* GetOrderProcessComponent() const { return OrderProcessComponent; }
@@ -92,6 +107,16 @@ public:
 	/** Returns current health, will be 0 if dead */
 	UFUNCTION(BlueprintCallable)
 		virtual int32 GetCharacterLevel() const;
+
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
+		virtual void SetPlayerState(EPlayerState NewState);
+
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
+	FORCEINLINE EPlayerState GetPlayerState() const {return CurrentPlayerState;}
+
+	void SendCompletedHandle(FCompleteDelegate &InOnCompleteDelegate) { CompletedHandle = InOnCompleteDelegate;}
+
+	void SendInterruptedHandle(FInterruptedDelegate &InOnInterruptedDelegate) { InterruptedHandle = InOnInterruptedDelegate; }
 
 protected:
 	// Called when the game starts or when spawned
@@ -113,11 +138,14 @@ protected:
 	 * @param DeltaValue Change in health value, positive for heal, negative for cost. If 0 the delta is unknown
 	 * @param EventTags The gameplay tags of the event that changed mana
 	 */
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Attribute", meta = (BlueprintProtected = "true"))
 		void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 
 	UFUNCTION()
 		virtual void OnGameStateChangeDelegate(ETurnBasePlayState NewState);
 
 	virtual void AddStartupGameplayAbilities();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Attribut")
+		void OnCollisionChange(bool NewState);
 };

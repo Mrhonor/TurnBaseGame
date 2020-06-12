@@ -46,6 +46,23 @@ public:
 	friend bool operator==(const FStorageCharacter &A, const FStorageCharacter &B);
 };
 
+USTRUCT(BlueprintType)
+struct FPathSearchNode
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	bool IsActive;
+	int32 Row;
+	int32 Col;
+	int32 GCost;
+	int32 HCost;
+	int32 TotalCost;
+	FPathSearchNode* ParentNode;
+	FPathSearchNode();
+	FPathSearchNode(int32 row, int32 col);
+	FPathSearchNode(int32 row, int32 col, int32 gCost, int32 hCost, FPathSearchNode* parentNode);
+};
+
 UCLASS()
 class TURNBASEGAME_API AGridScene : public AActor
 {
@@ -123,6 +140,7 @@ private:
 	TArray<FStorageObjectList*> ObjectRowList;
 	TArray<FStorageObjectList*> ObjectColList;
 
+
 	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "StorageObject", meta = (AllowprivateAccess = "true"))
 	//	ATurnBasePlayerCharacter* CurrentPlayerCharacter;
 
@@ -152,7 +170,7 @@ public:
 	* return                   Is it the Location in the Grid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Grid")
-		bool GetGridPosition(const FVector& Location, int32 &Row, int32 &Col);
+		bool GetGridPosition(FVector Location, int32 &Row, int32 &Col);
 
 	/**
 	* For the Given Index return the location.
@@ -315,7 +333,9 @@ private:
 	void DeleteTheColList(FStorageObjectList * DeletePtr);
 
 	// use recursion to search
-	bool Searching(TArray<FVector2D> &Path, int32 CurrentRow, int32 CurrentCol, int32 TargetRow, int32 TargetCol, int32 index);
+	bool Searching(FPathSearchNode * CurrentNode, int32 TargetRow, int32 TargetCol, FVector2D Direction, FPathSearchNode * ReturnNode);
+
+	void CalcPath(TArray<FPathSearchNode*> OpenList, int32 Index, TArray<FVector2D> &Path);
 
 	// search target character in CharacterArray.If found return index, not found return -1.
 	int32 SearchCharacter(ATurnBaseCharacter* SearchTarget);
